@@ -87,7 +87,7 @@
         <dependency>
             <groupId>org.filesys</groupId>
             <artifactId>jfileserver-alfresco-embed</artifactId>
-            <version>1.1.5-SNAPSHOT</version>
+            <version>1.1.5</version>
         </dependency>
 
         <dependency>
