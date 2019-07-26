@@ -20,9 +20,9 @@ down() {
 }
 
 purge() {
-    docker volume rm fileServersNG-v61-acs-volume
-    docker volume rm fileServersNG-v61-db-volume
-    docker volume rm fileServersNG-v61-ass-volume
+    docker volume rm fileserversng-v61-acs-volume
+    docker volume rm fileserversng-v61-db-volume
+    docker volume rm fileserversng-v61-ass-volume
 }
 
 build() {
