@@ -40,6 +40,7 @@ import org.filesys.server.filesys.DiskInterface;
 import org.filesys.smb.SMBStatus;
 import org.filesys.smb.server.SMBSrvException;
 import org.filesys.smb.server.SMBSrvSession;
+import org.filesys.smb.server.smbv2.auth.V2EnterpriseSMBAuthenticator;
 import org.ietf.jgss.Oid;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -59,7 +60,7 @@ import java.util.Vector;
  *
  * @author gkspencer
  */
-public class AlfrescoSMBAuthenticator extends EnterpriseSMBAuthenticator
+public class AlfrescoSMBAuthenticator extends V2EnterpriseSMBAuthenticator
     implements TransactionalSMBAuthenticator, ActivateableBean, InitializingBean, DisposableBean {
 
     // Logging
@@ -449,6 +450,10 @@ public class AlfrescoSMBAuthenticator extends EnterpriseSMBAuthenticator
             // context for subsequent requests
             getAuthenticationService().authenticateAsGuest();
             alfClient.setAuthenticationTicket(getAuthenticationService().getCurrentTicket());
+
+            // DEBUG
+            if ( logger.isDebugEnabled())
+                logger.debug("Logged on as guest");
         }
         else {
 
@@ -461,12 +466,26 @@ public class AlfrescoSMBAuthenticator extends EnterpriseSMBAuthenticator
                 userName = client.getLoggedOnName();
             }
 
-            // Set the authentication context to the current user
-            authenticationComponent.setCurrentUser( userName);
+            // Map the user name to an Alfresco person name
+            String personName = mapUserNameToPerson( userName, true);
+
+            // DEBUG
+            if ( logger.isDebugEnabled())
+                logger.debug("Mapped user name " + userName + " to person " + personName);
+
+            try {
+
+                // Set the authentication context to the current user/person
+                authenticationComponent.setCurrentUser(personName); //, AuthenticationComponent.UserNameValidationMode.NONE);
+            }
+            catch ( AuthenticationException ex) {
+
+                ex.printStackTrace();
+            }
 
             // Save the current ticket to be used to setup the authentication context for subsequent requests
             // for this session/virtual circuit
-            alfClient.setAuthenticationTicket(getAuthenticationService().getCurrentTicket() );
+            alfClient.setAuthenticationTicket(getAuthenticationService().getCurrentTicket());
         }
 
         // Check if the user is an administrator
@@ -474,7 +493,6 @@ public class AlfrescoSMBAuthenticator extends EnterpriseSMBAuthenticator
 
         // Get the users home folder node, if available
         getHomeFolderForUser( client);
-
     }
 
     /**

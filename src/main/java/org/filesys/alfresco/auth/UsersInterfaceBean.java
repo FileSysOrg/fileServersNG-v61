@@ -64,9 +64,6 @@ public class UsersInterfaceBean implements UsersInterface, ActivateableBean, Ini
     // Authentication component implementation
     private AuthenticationComponentImpl m_authComponentImpl;
 
-    // NTLM authenticator
-//    private NLTMAuthenticator m_ntlmAuthenticator;
-
     // MD4 hash decoder
     private MD4PasswordEncoder m_md4Encoder = new MD4PasswordEncoderImpl();
 
@@ -208,16 +205,6 @@ public class UsersInterfaceBean implements UsersInterface, ActivateableBean, Ini
         // Check if the default authentiction component implementation is being used
         if ( m_authComponent instanceof AuthenticationComponentImpl)
             m_authComponentImpl = (AuthenticationComponentImpl) m_authComponent;
-/**
-        // Make sure the authentication component is an NTLM authenticator
-        if ( m_authComponent instanceof NLTMAuthenticator == false)
-            throw new InvalidConfigurationException( "Authentication component does not support NTLM");
-
-        // Make sure the authenticator is in NTLM mode
-        m_ntlmAuthenticator = (NLTMAuthenticator) m_authComponent;
-        if ( m_ntlmAuthenticator.getNTLMMode() != NTLMMode.MD4_PROVIDER)
-            throw new InvalidConfigurationException( "Require NTLM mode authenticator");
-**/
     }
 
     /**
@@ -233,21 +220,25 @@ public class UsersInterfaceBean implements UsersInterface, ActivateableBean, Ini
 
         try {
 
-            // Map the user name to a person, and check if the account is enabled
-            String personName = mapUserNameToPerson(userName, true);
+            // Make sure we have an authentication component that supports MD4 hashed passwords
+            if ( m_authComponentImpl != null){
 
-            // Create the user account details
-            userAccount = new UserAccount( userName, null);
-            userAccount.setMappedName( personName);
+                // Map the user name to a person, and check if the account is enabled
+                String personName = mapUserNameToPerson(userName, true);
 
-            // Get the MD4 password for the user
-            //String md4hash = getNTLMAuthenticator().getMD4HashedPassword( personName);
-            String md4hash = m_authComponentImpl.getMD4HashedPassword( userName);
+                // Create the user account details
+                userAccount = new UserAccount(userName, null);
+                userAccount.setMappedName(personName);
 
-            userAccount.setMD4Password( m_md4Encoder.decodeHash(md4hash));
+                // Get the MD4 password for the user
+                String md4hash = m_authComponentImpl.getMD4HashedPassword(userName);
+
+                userAccount.setMD4Password(m_md4Encoder.decodeHash(md4hash));
+            }
+            else if (logger.isDebugEnabled())
+                logger.debug("No authentication component for MD4 passwords, user: " + userName);
         }
         catch ( AuthenticationException ex) {
-
 
         }
 

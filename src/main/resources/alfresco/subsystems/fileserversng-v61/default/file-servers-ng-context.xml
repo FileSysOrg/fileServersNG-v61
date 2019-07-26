@@ -4,6 +4,27 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans
         http://www.springframework.org/schema/beans/spring-beans.xsd">
 
+    <!-- The chaining authentication component -->
+    <bean id="chainingAuthenticationComponent"
+          class="org.alfresco.repo.security.authentication.subsystems.SubsystemChainingAuthenticationComponent"
+          parent="authenticationComponentBase">
+        <property name="nodeService">
+            <ref bean="nodeService" />
+        </property>
+        <property name="personService">
+            <ref bean="personService" />
+        </property>
+        <property name="transactionService">
+            <ref bean="transactionService" />
+        </property>
+        <property name="applicationContextManager">
+            <ref bean="Authentication" />
+        </property>
+        <property name="sourceBeanName">
+            <value>authenticationComponent</value>
+        </property>
+    </bean>
+
     <!-- Copied from alfrescoNtlm authentication subsystem -->
     <bean id="authenticationComponent" class="org.alfresco.repo.security.authentication.AuthenticationComponentImpl"
           parent="authenticationComponentBase">
@@ -61,6 +82,7 @@
             </set>
         </property>
     </bean>
+
     <bean id="authenticationDao" class="org.alfresco.repo.security.authentication.RepositoryAuthenticationDao">
         <property name="nodeService" ref="nodeService" />
         <property name="authorityService" ref="authorityService" />
@@ -100,7 +122,7 @@
             <ref bean="authenticationService" />
         </property>
         <property name="authenticationComponent">
-            <ref bean="authenticationComponent" />
+            <ref bean="chainingAuthenticationComponent" />
         </property>
         <property name="nodeService">
             <ref bean="NodeService" />
