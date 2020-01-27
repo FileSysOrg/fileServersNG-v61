@@ -82,6 +82,9 @@ public class ContentNetworkFile extends NodeRefNetworkFile
     // Flag to indicate if the file channel is writable
     private boolean writableChannel;
 
+    // Original size of the file when opened
+    private long originalSize;
+
     /**
      * Helper method to create a {@link org.filesys.server.filesys.NetworkFile network file} given a node reference.
      */
@@ -145,6 +148,9 @@ public class ContentNetworkFile extends NodeRefNetworkFile
             // Set the current size
             
             netFile.setFileSize(fileInfo.getSize());
+
+            // Save the original file size
+            netFile.setOriginalSize(fileInfo.getSize());
         }
         
         // Set the file timestamps
@@ -255,9 +261,6 @@ public class ContentNetworkFile extends NodeRefNetworkFile
      * @return Returns true if the channel should be writable
      * 
      * @see NetworkFile#getGrantedAccess()
-     * @see NetworkFile#READONLY
-     * @see NetworkFile#WRITEONLY
-     * @see NetworkFile#READWRITE
      */
     private boolean isWritable()
     {
@@ -276,7 +279,21 @@ public class ContentNetworkFile extends NodeRefNetworkFile
     {
         return content != null ? true : false;
     }
-    
+
+    /**
+     * Get the original file size, when opened
+     *
+     * @return long
+     */
+    public final long getOriginalSize() { return originalSize; }
+
+    /**
+     * Set the original file size, when opened
+     *
+     * @param origSize long
+     */
+    protected final void setOriginalSize(long origSize) { originalSize = origSize; }
+
     /**
      * Opens the channel for reading or writing depending on the access mode.
      * <p>
@@ -290,9 +307,6 @@ public class ContentNetworkFile extends NodeRefNetworkFile
      * @throws AlfrescoRuntimeException if this network file represents a directory
      *
      * @see NetworkFile#getGrantedAccess()
-     * @see NetworkFile#READONLY
-     * @see NetworkFile#WRITEONLY
-     * @see NetworkFile#READWRITE
      */
     public void openContent(boolean write, boolean trunc)
     	throws AccessDeniedException, AlfrescoRuntimeException
@@ -865,5 +879,13 @@ public class ContentNetworkFile extends NodeRefNetworkFile
         }
         return false;
     }
-    
+
+    /**
+     * Check if the file is versioned
+     *
+     * @return boolean
+     */
+    public final boolean isVersioned() {
+        return nodeService.hasAspect( getNodeRef(), ContentModel.ASPECT_VERSIONABLE);
+    }
 }

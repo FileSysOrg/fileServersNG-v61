@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 
+import org.alfresco.service.cmr.repository.NodeRef;
 import org.filesys.alfresco.base.NetworkFileLegacyReferenceCount;
 import org.filesys.server.filesys.FileAttribute;
 import org.filesys.server.filesys.cache.FileState;
@@ -46,9 +47,8 @@ public class TempNetworkFile extends JavaNetworkFile
 {
     private boolean changed = false;
     boolean modificationDateSetDirectly = false;
-    
- 
-    
+    private FileState fileState;
+
     /**
      * Create a new temporary file with no existing content.
      * 
@@ -218,7 +218,7 @@ public class TempNetworkFile extends JavaNetworkFile
      * 
      * @return int
      */
-    public synchronized final int decrementLagacyOpenCount() {
+    public synchronized final int decrementLegacyOpenCount() {
         legacyOpenCount--;
         return legacyOpenCount;
     }
@@ -231,7 +231,4 @@ public class TempNetworkFile extends JavaNetworkFile
     public final int getLegacyOpenCount() {
         return legacyOpenCount;
     }
-
-
-    private FileState fileState;
 }

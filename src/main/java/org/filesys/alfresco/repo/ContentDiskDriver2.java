@@ -34,28 +34,34 @@ import java.io.InputStream;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.nio.charset.Charset;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.alfresco.error.AlfrescoRuntimeException;
+import org.alfresco.service.cmr.repository.*;
+import org.alfresco.service.cmr.version.Version;
+import org.alfresco.service.cmr.version.VersionHistory;
+import org.alfresco.service.cmr.version.VersionService;
 import org.filesys.alfresco.base.AlfrescoContext;
 import org.filesys.alfresco.base.AlfrescoDiskDriver;
 import org.filesys.alfresco.base.ExtendedDiskInterface;
 import org.filesys.alfresco.base.PseudoFileOverlayImpl;
 import org.filesys.alfresco.base.RepositoryDiskInterface;
 import org.filesys.server.SrvSession;
+import org.filesys.server.auth.AuthContext;
+import org.filesys.server.auth.ClientInfo;
 import org.filesys.server.core.DeviceContext;
 import org.filesys.server.core.DeviceContextException;
 import org.filesys.server.filesys.*;
 import org.filesys.server.filesys.cache.FileState;
+import org.filesys.server.filesys.postprocess.PostCloseProcessor;
 import org.filesys.server.filesys.pseudo.MemoryNetworkFile;
 import org.filesys.server.filesys.pseudo.PseudoFile;
 import org.filesys.server.filesys.pseudo.PseudoFileList;
 import org.filesys.server.filesys.pseudo.PseudoNetworkFile;
 import org.filesys.server.filesys.quota.QuotaManager;
 import org.filesys.server.filesys.quota.QuotaManagerException;
+import org.filesys.server.filesys.version.FileVersionInfo;
+import org.filesys.server.filesys.version.VersionInterface;
 import org.filesys.server.locking.FileLockingInterface;
 import org.filesys.server.locking.LockManager;
 import org.filesys.server.locking.OpLockInterface;
@@ -79,15 +85,6 @@ import org.alfresco.service.cmr.coci.CheckOutCheckInService;
 import org.alfresco.service.cmr.lock.LockService;
 import org.alfresco.service.cmr.lock.NodeLockedException;
 import org.alfresco.service.cmr.model.FileFolderService;
-import org.alfresco.service.cmr.repository.ContentData;
-import org.alfresco.service.cmr.repository.ContentIOException;
-import org.alfresco.service.cmr.repository.ContentReader;
-import org.alfresco.service.cmr.repository.ContentService;
-import org.alfresco.service.cmr.repository.ContentWriter;
-import org.alfresco.service.cmr.repository.MimetypeService;
-import org.alfresco.service.cmr.repository.NodeRef;
-import org.alfresco.service.cmr.repository.NodeService;
-import org.alfresco.service.cmr.repository.StoreRef;
 import org.alfresco.service.cmr.repository.datatype.DefaultTypeConverter;
 import org.alfresco.service.cmr.search.SearchService;
 import org.alfresco.service.cmr.security.AccessStatus;
@@ -104,7 +101,7 @@ import org.springframework.extensions.config.ConfigElement;
 /**
  * Alfresco Content repository filesystem driver class
  * <p>
- * Provides a JLAN ContentDiskDriver for various JLAN protocols 
+ * Provides a JFileServer ContentDiskDriver for various JFileServer protocols
  * such as SMB/CIFS, NFS and FTP.
  *
  */
@@ -113,8 +110,9 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
         DiskSizeInterface,
         IOCtlInterface,
         RepositoryDiskInterface,
-    OpLockInterface, 
-    FileLockingInterface
+        OpLockInterface,
+        FileLockingInterface,
+        VersionInterface
 {
     // Logging
     private static final Log logger = LogFactory.getLog(ContentDiskDriver2.class);
@@ -141,6 +139,7 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
     private NodeArchiveService nodeArchiveService;
     private HiddenAspect hiddenAspect;
     private LockKeeper lockKeeper;
+    private VersionService versionService;
 
     // TODO Should not be here - should be specific to a context.
 	private boolean isLockedFilesAsOffline;
@@ -169,6 +168,7 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
         PropertyCheck.mandatory(this, "nodeArchiveService", nodeArchiveService);
         PropertyCheck.mandatory(this, "hiddenAspect", hiddenAspect);
         PropertyCheck.mandatory(this, "lockKeeper", lockKeeper);
+        PropertyCheck.mandatory(this, "versionService", versionService);
 // v61        PropertyCheck.mandatory(this, "deletePseudoFileCache",  deletePseudoFileCache);
     }
     
@@ -266,7 +266,14 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
     public final LockService getLockService() {
         return lockService;
     }
-    
+
+    /**
+     * Return the version service
+     *
+     * @return VersionService
+     */
+    public final VersionService getVersionService() { return versionService; }
+
     /**
      * Get the policy behaviour filter, used to inhibit versioning on a per transaction basis
      */
@@ -374,7 +381,14 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
     public void setLockService(LockService lockService) {
         this.lockService = lockService;
     }
-    
+
+    /**
+     * Set the version service
+     *
+     * @param versionService VersionService
+     */
+    public void setVersionService(VersionService versionService) { this.versionService = versionService; }
+
     /**
      * Set the policy behaviour filter, used to inhibit versioning on a per transaction basis
      * 
@@ -2887,43 +2901,41 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
      * @return node ref of deleted file
      */
     public NodeRef closeFile(TreeConnection tree, NodeRef rootNode, String path, NetworkFile file) throws IOException
-    {   
+    {
         if ( logger.isDebugEnabled())
         {
             logger.debug("Close file:" + path + ", readOnly=" + file.isReadOnly() );
         }
-        
+
         if( file instanceof PseudoNetworkFile || file instanceof MemoryNetworkFile)
         {
             file.close();
-            
+
             if(file.hasDeleteOnClose())
             {
-            	if(logger.isDebugEnabled())
-            	{
-            		logger.debug("delete on close a pseudo file");
-            	}
-            	final ContentContext ctx = (ContentContext) tree.getContext();
-            	 
-            	String[] paths = FileName.splitPath(path);
-                 
+                if(logger.isDebugEnabled())
+                {
+                    logger.debug("delete on close a pseudo file");
+                }
+                final ContentContext ctx = (ContentContext) tree.getContext();
+
+                String[] paths = FileName.splitPath(path);
+
                 if (paths[0] != null && paths[0].length() > 1)
-                {  
-                     // lookup parent directory
-                     NodeRef dirNodeRef = getNodeForPath(tree, paths[0]);
-                     ctx.getPseudoFileOverlay().delete(dirNodeRef, paths[1]);
+                {
+                    // lookup parent directory
+                    NodeRef dirNodeRef = getNodeForPath(tree, paths[0]);
+                    ctx.getPseudoFileOverlay().delete(dirNodeRef, paths[1]);
                 }
             }
             return null;
         }
-        
-        /**
-         * Delete on close attribute - node needs to be deleted.
-         */
+
+        // Delete on close attribute - node needs to be deleted.
         if(file.hasDeleteOnClose())
         {
             NodeRef target = null;
-            
+
             if(logger.isDebugEnabled())
             {
                 logger.debug("closeFile has delete on close set path:" + path);
@@ -2939,39 +2951,39 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
             catch (org.alfresco.repo.security.permissions.AccessDeniedException ex)
             {
                 if ( logger.isDebugEnabled())
-                {   
+                {
                     logger.debug("Delete file from close file- access denied", ex);
                 }
                 // Convert to a filesystem access denied status
                 throw new AccessDeniedException("Unable to delete " + path);
             }
-            
+
             // Still need to close the open file handle.
             file.close();
-            
+
             if (logger.isDebugEnabled())
             {
                 logger.debug("Closed file: network file=" + file + " delete on close=" + file.hasDeleteOnClose());
             }
-          
+
             return target;
         }
-        
+
         // Check for a temp file - which will be a new file or a read/write file
-        if ( file instanceof TempNetworkFile) 
-        {   
+        if ( file instanceof TempNetworkFile)
+        {
             if(logger.isDebugEnabled())
             {
                 logger.debug("Got a temp network file to close path:" + path);
             }
-            
+
             // Some content was written to the temp file.
             TempNetworkFile tempFile =(TempNetworkFile)file;
-            
+
             NodeRef target = getSMBHelper().getNodeRef(rootNode, tempFile.getFullName());
-            
+
             lockKeeper.removeLock(target);
-            
+
             if(nodeService.hasAspect(target, ContentModel.ASPECT_NO_CONTENT))
             {
                 if(logger.isDebugEnabled())
@@ -2980,41 +2992,35 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
                 }
                 nodeService.removeAspect(target, ContentModel.ASPECT_NO_CONTENT);
             }
-            
-            if(tempFile.isChanged()) 
+
+            if(tempFile.isChanged())
             {
                 tempFile.flushFile();
                 tempFile.close();
-                
-                /*
-                 * Need to work out whether content has changed.  Some odd situations do not change content.
-                 */
+
+                // Need to work out whether content has changed.  Some odd situations do not change content.
                 boolean contentChanged = true;
-                
+
                 ContentReader existingContent = contentService.getReader(target, ContentModel.PROP_CONTENT);
                 if(existingContent != null)
                 {
                     existingContent.getSize();
                     existingContent.getMimetype();
                     contentChanged = isContentChanged(existingContent, tempFile);
-                
-                    /* 
-                     * MNT-248 fix
-                     * No need to create a version of a zero byte file
-                     */
+
+                    // MNT-248 fix
+                    // No need to create a version of a zero byte file
                     if (file.getFileSize() > 0 && existingContent.getSize() == 0 && nodeService.hasAspect(target, ContentModel.ASPECT_VERSIONABLE))
                     {
                         getPolicyFilter().disableBehaviour(target, ContentModel.ASPECT_VERSIONABLE);
                     }
                 }
-                      
+
                 if(contentChanged)
                 {
                     logger.debug("content has changed, need to create a new content item");
-                
-                    /**
-                     * Take over the behaviour of the auditable aspect         
-                     */
+
+                    // Take over the behaviour of the auditable aspect
                     getPolicyFilter().disableBehaviour(target, ContentModel.ASPECT_AUDITABLE);
                     nodeService.setProperty(target, ContentModel.PROP_MODIFIER, authService.getCurrentUserName());
                     if(tempFile.isModificationDateSetDirectly())
@@ -3027,13 +3033,11 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
                         logger.debug("modification date not set directly");
                         nodeService.setProperty(target, ContentModel.PROP_MODIFIED, new Date());
                     }
-            
-                    /**
-                     *  Take a guess at the mimetype
-                     */
+
+                    //  Take a guess at the mimetype
                     String mimetype = mimetypeService.guessMimetype(tempFile.getFullName(), new FileContentReader(tempFile.getFile()));
                     logger.debug("guesssed mimetype:" + mimetype);
-                    
+
                     /**
                      * mime type guessing may have failed in which case we should assume the mimetype has not changed.
                      */
@@ -3050,7 +3054,7 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
                             }
                         }
                     }
-            
+
                     String encoding;
                     // Take a guess at the locale
                     InputStream is = new BufferedInputStream(new FileInputStream(tempFile.getFile()));
@@ -3066,11 +3070,11 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
                         {
                             try
                             {
-                               is.close();
+                                is.close();
                             }
                             catch (IOException e)
                             {
-                               // Ignore
+                                // Ignore
                             }
                         }
                     }
@@ -3081,32 +3085,32 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
                 } // if content changed
             }
         }
-        
+
         try
-        {                                           
+        {
             // Defer to the network file to close the stream and remove the content
-                       
-            file.close();                    
-            
+
+            file.close();
+
             // DEBUG
-            
+
             if (logger.isDebugEnabled())
             {
                 logger.debug("Closed file: network file=" + file + " delete on close=" + file.hasDeleteOnClose() + ", write count" + file.getWriteCount());
-                
-                if ( file.hasDeleteOnClose() == false && file instanceof ContentNetworkFile) 
+
+                if ( file.hasDeleteOnClose() == false && file instanceof ContentNetworkFile)
                 {
                     ContentNetworkFile cFile = (ContentNetworkFile) file;
                     logger.debug("  File " + file.getFullName() + ", version=" + nodeService.getProperty( cFile.getNodeRef(), ContentModel.PROP_VERSION_LABEL));
                 }
             }
-            
+
             return null;
         }
         catch (IOException e)
         {
             if ( logger.isDebugEnabled())
-            {   
+            {
                 logger.debug("Exception in closeFile - path:" + path, e);
             }
             throw new IOException("Unable to closeFile :" + path + e.toString(), e);
@@ -3114,12 +3118,73 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
         catch (Error e)
         {
             if ( logger.isDebugEnabled())
-            {   
+            {
                 logger.debug("Exception in closeFile - path:" + path, e);
             }
-            
+
             throw e;
         }
+
+//----------------------------------------------------------------------------------------------------------------------
+/**
+        if ( logger.isDebugEnabled())
+        {
+            logger.debug("Close file:" + path + ", readOnly=" + file.isReadOnly() );
+        }
+
+        // Check for a temp file - which will be a new file or a read/write file
+        if ( file instanceof TempNetworkFile) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("Got a temp network file to close path:" + path);
+            }
+
+            // Process the file close in a callback after the protocol level response has been returned to the client
+            // Mark the file to use a close file post processor
+            file.setStatusFlag(NetworkFile.Flags.POST_CLOSE_FILE, true);
+
+            // Need to save the root node details on the file to be picked up in the callback
+            TempNetworkFile tempFile = (TempNetworkFile) file;
+            tempFile.setRootNode(rootNode);
+
+            // DEBUG
+            if (logger.isDebugEnabled())
+                logger.debug("Enable post close processor for temp file " + file.getFullName());
+
+            // TEST
+            File tempDir = new File("/usr/local/tomcat/temp/Alfresco/");
+            String[] tempList = tempDir.list();
+
+            if ( tempList != null) {
+                int idx = 0;
+
+                System.out.println("Temp folder: " + tempDir);
+                while ( idx < tempList.length)
+                    System.out.println("Temp file: " + tempList[idx++]);
+            }
+
+            System.out.println("TempNetworkFile: " + tempFile);
+
+            // File will be closed by the callback
+            return null;
+        }
+        else if ( file instanceof ContentNetworkFile) {
+
+            // Process the file close in a callback after the protocol level response has been returned to the client
+            // Mark the file to use a close file post processor
+            file.setStatusFlag(NetworkFile.Flags.POST_CLOSE_FILE, true);
+
+            // Need to save the root node details on the file to be picked up in the callback
+            ContentNetworkFile contentFile = (ContentNetworkFile) file;
+            contentFile.setRootNode(rootNode);
+
+            // DEBUG
+            if (logger.isDebugEnabled())
+                logger.debug("Enable post close processor for content file " + file.getFullName());
+
+            // File will be closed by the callback
+            return null;
+        }
+ **/
     }
     
     /**
@@ -3272,4 +3337,184 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
 		this.deletePseudoFileCache = deletePseudoFileCache;
 	}
 
+	//-------------------- VersionInterface implementation --------------------//
+    /**
+     * Get the list of available previous versions for the specified path
+     *
+     * @param session Server session
+     * @param tree Tree connection
+     * @param file Network file
+     * @return List &lt; FileVersionInfo &gt;
+     * @throws IOException If an error occurs.
+     */
+    public List<FileVersionInfo> getPreviousVersions(SrvSession session, TreeConnection tree, NetworkFile file)
+            throws IOException {
+
+        // Check if the file is a pseudo-file
+        if ( file instanceof PseudoNetworkFile)
+            return null;
+
+        // Check if the file is a directory
+        if ( file.isDirectory())
+            return null;
+
+        List<FileVersionInfo> versionList = null;
+
+        try {
+
+            // Find the node for this file
+            NodeRef nodeRef = getNodeForPath(tree, file.getFullName());
+
+            if (nodeRef != null) {
+
+                // Get the version history for the file
+                VersionHistory versionHistory = versionService.getVersionHistory( nodeRef);
+
+                if ( versionHistory != null) {
+
+                    // Get the list of versions
+                    Collection<Version> versions = versionHistory.getAllVersions();
+
+                    if ( versions != null) {
+
+                        // Create the file version information list
+                        versionList = new ArrayList<>(versions.size());
+
+                        for (Version curVer : versions) {
+
+                            // Convert to a file version information object
+                            FileVersionInfo verInfo = new FileVersionInfo(curVer.getFrozenModifiedDate().getTime());
+
+                            versionList.add(verInfo);
+                        }
+                    }
+                }
+            }
+        }
+        catch ( AspectMissingException ex) {
+        }
+
+        return versionList;
+    }
+
+    /**
+     * Open a previous version of a file
+     *
+     * @param session Server session
+     * @param tree    Tree connection
+     * @param params  File open parameters
+     * @return NetworkFile
+     * @throws IOException If an error occurs.
+     */
+    public NetworkFile openPreviousVersion(SrvSession session, TreeConnection tree, FileOpenParams params)
+            throws IOException {
+
+        NetworkFile verFile = null;
+
+        try {
+
+            // Find the node for this file
+            NodeRef nodeRef = getNodeForPath(tree, params.getPath());
+
+            if (nodeRef != null) {
+
+                // Get the version history for the file
+                VersionHistory versionHistory = versionService.getVersionHistory( nodeRef);
+
+                if ( versionHistory != null) {
+
+                    // Get the list of versions
+                    Collection<Version> versions = versionHistory.getAllVersions();
+
+                    if ( versions != null) {
+
+                        // Search for the required version details
+                        Iterator<Version> verIter = versions.iterator();
+
+                        while ( verIter.hasNext() && verFile == null) {
+
+                            // Get the current version information
+                            Version curVer = verIter.next();
+
+                            // Convert the version time to seconds
+                            long verTimeSecs = (curVer.getFrozenModifiedDate().getTime() / 1000L) * 1000L;
+
+                            // Check if we found the matching file version
+                            if ( verTimeSecs == params.getPreviousVersionDateTime()) {
+
+                                // Open the previous version of the file for read-only access
+                                verFile = ContentNetworkFile.createFile(nodeService, contentService, mimetypeService, getSMBHelper(), curVer.getFrozenStateNodeRef(),
+                                                                            params.getPath(), true, false, session);
+                                verFile.setGrantedAccess( NetworkFile.Access.READ_ONLY);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch ( Exception ex) {
+        }
+
+        return verFile;
+    }
+
+    /**
+     * Return the file information for a particular version of a file
+     *
+     * @param sess   Server session
+     * @param tree   Tree connection
+     * @param path   String
+     * @param timeStamp long
+     * @return FileInfo
+     * @throws IOException If an error occurs.
+     */
+    public FileInfo getPreviousVersionFileInformation( SrvSession sess, TreeConnection tree, String path, long timeStamp)
+            throws IOException {
+
+        FileInfo verFileInfo = null;
+
+        try {
+
+            // Find the node for this file
+            NodeRef nodeRef = getNodeForPath(tree, path);
+
+            if (nodeRef != null) {
+
+                // Get the version history for the file
+                VersionHistory versionHistory = versionService.getVersionHistory( nodeRef);
+
+                if ( versionHistory != null) {
+
+                    // Get the list of versions
+                    Collection<Version> versions = versionHistory.getAllVersions();
+
+                    if ( versions != null) {
+
+                        // Search for the required version details
+                        Iterator<Version> verIter = versions.iterator();
+
+                        while ( verIter.hasNext() && verFileInfo == null) {
+
+                            // Get the current version information
+                            Version curVer = verIter.next();
+
+                            // Convert the version time to seconds
+                            long verTimeSecs = (curVer.getFrozenModifiedDate().getTime() / 1000L) * 1000L;
+
+                            // Check if we found the matching file version
+                            if ( verTimeSecs == timeStamp) {
+
+                                // Get the file information of the versioned node
+                                verFileInfo = smbHelper.getFileInformation( curVer.getFrozenStateNodeRef(), true, isLockedFilesAsOffline);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch ( Exception ex) {
+        }
+
+        return verFileInfo;
+    }
 }

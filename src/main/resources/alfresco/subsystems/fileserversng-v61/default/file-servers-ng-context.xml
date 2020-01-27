@@ -176,6 +176,14 @@
         <property name="jaasConfigEntryName">
             <value>${smb.kerberos.loginEntryName}</value>
         </property>
+
+        <property name="kerberosConfiguration">
+            <value>${smb.kerberos.config}</value>
+        </property>
+
+        <property name="loginConfiguration">
+            <value>${smb.login.config}</value>
+        </property>
     </bean>
 
     <!-- FTP authentication -->
@@ -237,6 +245,12 @@
           factory-method="createFileServerConfiguration">
         <property name="smbConfigBean">
             <ref bean="smbServerConfig" />
+        </property>
+        <property name="smb2ConfigBean">
+            <ref bean="smb2ServerConfig" />
+        </property>
+        <property name="smb3ConfigBean">
+            <ref bean="smb3ServerConfig" />
         </property>
         <property name="ftpConfigBean">
             <ref bean="ftpServerConfig" />
@@ -344,6 +358,12 @@
                 </property>
             </bean>
         </property>
+
+        <!-- Require sessions to use signing -->
+        <property name="requireSigning">
+            <value>${smb.requireSigning}</value>
+        </property>
+
 <!--
         <property name="netBIOSSMB">
             <bean class="org.filesys.alfresco.config.NetBIOSSMBConfigBean">
@@ -434,6 +454,29 @@
             <value>${smb.sessionDebug}</value>
         </property>
 
+    </bean>
+
+    <!-- SMB 2 Specific Configuration -->
+    <bean id="smb2ServerConfig" class="org.filesys.alfresco.config.SMB2ConfigBean">
+        <property name="maxPacketSize">
+            <value>${smb.maxPacketSize}</value>
+        </property>
+        <property name="requireSigning">
+            <value>${smb.requireSigning}</value>
+        </property>
+    </bean>
+
+    <!-- SMB 3 Specific Configuration -->
+    <bean id="smb3ServerConfig" class="org.filesys.alfresco.config.SMB3ConfigBean">
+        <property name="primaryEncryptionType">
+            <value>${smb.smb3PrimaryEncryption}</value>
+        </property>
+        <property name="secondaryEncryptionType">
+            <value>${smb.smb3SecondaryEncryption}</value>
+        </property>
+        <property name="disableEncryption">
+            <value>${smb.smb3DisableEncryption}</value>
+        </property>
     </bean>
 
     <bean id="ftpServerConfig" class="org.filesys.alfresco.config.FTPConfigBean">
@@ -926,7 +969,11 @@
         <property name="policyComponent"><ref bean="policyComponent"/></property>
         <property name="opLockInterface"><ref bean="contentDiskDriver2" /></property>
         <property name="fileLockingInterface"><ref bean="contentDiskDriver2" /></property>
+        <property name="versionInterface"><ref bean="contentDiskDriver2" /></property>
 
+        <property name="enablePostClose">
+            <value>${smb.enablepostclose}</value>
+        </property>
     </bean>
 
     <bean id="ruleEvaluator" class="org.filesys.alfresco.repo.rules.RuleEvaluatorImpl"
@@ -1098,6 +1145,7 @@
                 <value>setFileInformation</value>
                 <value>copyContent</value>
                 <value>deleteEmptyFile</value>
+                <value>postCloseFile</value>
             </list>
         </property>
     </bean>
@@ -1125,6 +1173,7 @@
                 <value>org.filesys.server.filesys.DiskSizeInterface</value>
                 <value>org.filesys.server.filesys.IOCtlInterface</value>
                 <value>org.filesys.alfresco.base.RepositoryDiskInterface</value>
+                <value>org.filesys.server.filesys.postprocess.PostCloseProcessor</value>
             </list>
         </property>
         <property name="targetName">
@@ -1161,6 +1210,7 @@
         <property name="nodeArchiveService" ><ref bean="nodeArchiveService"/></property>
         <property name="hiddenAspect" ><ref bean="hiddenAspect"/></property>
         <property name="alfrescoLockKeeper" ><ref bean="lockKeeper"/></property>
+        <property name="versionService" ><ref bean="VersionService"/></property>
 <!--        <property name="deletePseudoFileCache" ><ref bean="deletePseudoFileCache"/></property> -->
 
     </bean>

@@ -334,6 +334,10 @@ public class SMBHelper
             fileAttributes |= FileAttribute.Directory;
             fileInfo.setFileAttributes(fileAttributes);
             fileInfo.setFileType(FileType.Directory);
+
+            // Set the folder file sizes
+            fileInfo.setFileSize( 512);
+            fileInfo.setAllocationSize( 1024);
         }
         else
         {
