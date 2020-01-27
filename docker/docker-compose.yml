@@ -24,7 +24,7 @@ services:
       - "60000-60100:60000-60100"
     volumes:
       - fileserversng-v61-acs-volume:/usr/local/tomcat/alf_data
-      - /Users/gkspencer/JFileServer/alfresco-kerberos:/usr/local/tomcat/kerberos
+      - /Users/gkspencer/JFileServer/alfresco-kerberos-win2019:/kerberos
     depends_on:
       - fileserversng-v61-postgres
 
