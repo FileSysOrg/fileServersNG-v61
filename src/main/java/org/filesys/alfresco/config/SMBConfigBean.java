@@ -117,6 +117,9 @@ public class SMBConfigBean
     // Enabled dialect set
     private DialectSelector enabledDialects;
 
+    // Require signing, client must support and enable signing of requests
+    private boolean requireSigning;
+
     /**
      * Class constructor
      *
@@ -668,5 +671,21 @@ public class SMBConfigBean
 
         // Set the enabled dialects list
         enabledDialects = enaDialects;
+    }
+
+    /**
+     * Check if signing is required for all sessions
+     *
+     * @return boolean
+     */
+    public boolean getRequireSigning() { return requireSigning; }
+
+    /**
+     * Set the require signing flag
+     *
+     * @param reqSigning boolean
+     */
+    public void setRequireSigning(boolean reqSigning) {
+        requireSigning = reqSigning;
     }
 }
