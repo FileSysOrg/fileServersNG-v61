@@ -17,11 +17,11 @@ COPY disable-webscript-caching-context.xml $TOMCAT_DIR/shared/classes/alfresco/e
 # Copy Dockerfile to avoid an error if no license file exists
 COPY Dockerfile license/*.* $TOMCAT_DIR/webapps/alfresco/WEB-INF/classes/alfresco/extension/license/
 
-# Folder for Kerberos authentication files
-RUN mkdir ./kerberos
+# Remove the older BouncyCastle library Jar
+#RUN rm $TOMCAT_DIR/webapps/alfresco/WEB-INF/lib/bcprov-jdk15on-1.60.jar
 
-# Update the Java security configuration to add the Alfresco Java login configuration
-RUN echo "login.config.url.1=file:/usr/local/tomcat/kerberos/alfresco-login.config" >> /usr/java/jdk-11.0.1/conf/security/java.security
+# Folder for Kerberos authentication files
+RUN mkdir /kerberos
 
 # Install the Kerberos client apps
 RUN yum -y install krb5-workstation
@@ -31,4 +31,4 @@ RUN rm /etc/localtime
 RUN ln -s /usr/share/zoneinfo/Europe/London /etc/localtime
 
 # Volume mapping for the optional Kerberos configuration folder
-VOLUME /usr/local/tomcat/kerberos
+VOLUME /kerberos
