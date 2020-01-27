@@ -49,6 +49,9 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Paths;
 import java.security.Principal;
 import java.util.List;
 import java.util.Vector;
@@ -267,6 +270,52 @@ public class AlfrescoSMBAuthenticator extends V2EnterpriseSMBAuthenticator
     public void setStripKerberosUsernameSuffix(boolean stripKerberosUsernameSuffix)
     {
         m_stripKerberosUsernameSuffix = stripKerberosUsernameSuffix;
+    }
+
+    /**
+     * Set the Kerberos configuration path
+     *
+     * @param krbConfPath String
+     */
+    public void setKerberosConfiguration(String krbConfPath) {
+
+        if ( krbConfPath != null && krbConfPath.length() > 0) {
+
+            // Make sure the Kerberos configuration file exists
+            if (Files.exists( Paths.get( krbConfPath), LinkOption.NOFOLLOW_LINKS)) {
+
+                // Set the Kerberos configuration path
+                System.setProperty( "java.security.krb5.conf", krbConfPath);
+            }
+            else {
+
+                // Configuration file does not exist
+                throw new AlfrescoRuntimeException("Kerberos configuration file does not exist - " + krbConfPath);
+            }
+        }
+    }
+
+    /**
+     * Set the Java login configuration path
+     *
+     * @param loginConfPath String
+     */
+    public void setLoginConfiguration(String loginConfPath) {
+
+        if ( loginConfPath != null && loginConfPath.length() > 0) {
+
+            // Make sure the login configuration file exists
+            if (Files.exists( Paths.get( loginConfPath), LinkOption.NOFOLLOW_LINKS)) {
+
+                // Set the login configuration path
+                System.setProperty( "java.security.auth.login.config", loginConfPath);
+            }
+            else {
+
+                // Configuration file does not exist
+                throw new AlfrescoRuntimeException("Login configuration file does not exist - " + loginConfPath);
+            }
+        }
     }
 
     /*
