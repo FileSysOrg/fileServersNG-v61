@@ -158,7 +158,7 @@ public abstract class NodeRefNetworkFile extends AlfrescoNetworkFile
      * 
      * @return int
      */
-    public synchronized final int decrementLagacyOpenCount() {
+    public synchronized final int decrementLegacyOpenCount() {
         legacyOpenCount--;
         return legacyOpenCount;
     }

@@ -392,7 +392,7 @@ public class LegacyFileStateDriver implements ExtendedDiskInterface
                 if(openFile instanceof NetworkFileLegacyReferenceCount)
                 {
                     NetworkFileLegacyReferenceCount counter = (NetworkFileLegacyReferenceCount)openFile;
-                    counter.decrementLagacyOpenCount();
+                    counter.decrementLegacyOpenCount();
                 }
             }
             if(rollbackSetToken)
@@ -432,7 +432,7 @@ public class LegacyFileStateDriver implements ExtendedDiskInterface
         if(file instanceof NetworkFileLegacyReferenceCount)
         {
             NetworkFileLegacyReferenceCount counter = (NetworkFileLegacyReferenceCount)file;
-            legacyOpenCount = counter.decrementLagacyOpenCount();
+            legacyOpenCount = counter.decrementLegacyOpenCount();
             if(logger.isDebugEnabled())
             {
                 logger.debug("closeFile: legacyOpenCount=" + legacyOpenCount);
