@@ -26,16 +26,6 @@
  */
 package org.filesys.alfresco;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.EnumSet;
-import java.util.Enumeration;
-import java.util.Locale;
-import java.util.StringTokenizer;
-
 import org.alfresco.error.AlfrescoRuntimeException;
 import org.alfresco.repo.security.authentication.AuthenticationComponent;
 import org.alfresco.repo.tenant.TenantService;
@@ -52,14 +42,10 @@ import org.filesys.alfresco.base.AlfrescoClientInfoFactory;
 import org.filesys.alfresco.base.ExtendedDiskInterface;
 import org.filesys.debug.DebugConfigSection;
 import org.filesys.ftp.FTPConfigSection;
-import org.filesys.netbios.NetBIOSName;
-import org.filesys.netbios.NetBIOSNameList;
-import org.filesys.netbios.NetBIOSSession;
 import org.filesys.oncrpc.nfs.NFSConfigSection;
 import org.filesys.server.auth.ClientInfo;
 import org.filesys.server.config.GlobalConfigSection;
 import org.filesys.server.config.InvalidConfigurationException;
-import org.filesys.server.config.LicenceConfigSection;
 import org.filesys.server.config.ServerConfiguration;
 import org.filesys.smb.server.SMBConfigSection;
 import org.filesys.util.IPAddress;
@@ -72,6 +58,15 @@ import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.extensions.config.element.GenericConfigElement;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.EnumSet;
+import java.util.Enumeration;
+import java.util.Locale;
+import java.util.StringTokenizer;
 
 /**
  * Alfresco File Server Configuration Bean Class
@@ -90,18 +85,6 @@ public abstract class AbstractServerConfigurationBean extends ServerConfiguratio
   
   public static final String BIND_TO_IGNORE = "0.0.0.0";
   
-  // SMB/SMB session debug type strings
-  //
-  // Must match the bit mask order
-  protected static final String m_sessDbgStr[] = { "PKTTYPE", "STATE", "RXDATA", "TXDATA", "DUMPDATA", "NEGOTIATE", "TREE",
-            "SEARCH", "INFO", "FILE", "FILEIO", "TRANSACT", "ECHO", "ERROR", "IPC", "LOCK", "DCERPC", "STATECACHE",
-            "TIMING", "NOTIFY", "STREAMS", "SOCKET", "PKTPOOL", "PKTSTATS", "THREADPOOL", "BENCHMARK", "OPLOCK", "PKTALLOC",
-            "COMPOUND", "CANCEL", "SIGNING", "ENCRYPTION"};
-
-    // FTP server debug type strings
-  protected static final String m_ftpDebugStr[] = { "STATE", "RXDATA", "TXDATA", "DUMPDATA", "SEARCH", "INFO", "FILE", "FILEIO", "ERROR", "PKTTYPE",
-      "TIMING", "DATAPORT", "DIRECTORY", "SSL" };
-
   // Default FTP server port
   protected static final int DefaultFTPServerPort = 21;
 
@@ -110,10 +93,6 @@ public abstract class AbstractServerConfigurationBean extends ServerConfiguratio
 
   // Default FTP anonymous account name
   protected static final String DefaultFTPAnonymousAccount = "anonymous";
-  
-  //  NFS server debug type strings
-  protected static final String m_nfsDebugStr[] = { "RXDATA", "TXDATA", "DUMPDATA", "SEARCH", "INFO", "FILE",
-    "FILEIO", "ERROR", "TIMING", "DIRECTORY", "SESSION" };
   
   // Token name to substitute current server name into the SMB server name
   protected static final String TokenLocalName = "${localname}";
@@ -179,7 +158,7 @@ public abstract class AbstractServerConfigurationBean extends ServerConfiguratio
    * 
    * @param srvName String
    */
-  public AbstractServerConfigurationBean( String srvName)
+  public AbstractServerConfigurationBean(String srvName)
   {
       super( srvName);
   }
@@ -429,6 +408,9 @@ public abstract class AbstractServerConfigurationBean extends ServerConfiguratio
 
           // Load the optional licence key
           processLicenceConfig();
+
+          // Load the optional audit log configuration
+          processAuditLog();
       }
       catch (Exception ex)
       {
@@ -502,6 +484,8 @@ public abstract class AbstractServerConfigurationBean extends ServerConfiguratio
   protected abstract void processClusterConfig() throws InvalidConfigurationException;
 
   protected abstract void processLicenceConfig();
+
+  protected abstract void processAuditLog() throws IOException;
 
   protected void processWINSServerConfig() {}
 

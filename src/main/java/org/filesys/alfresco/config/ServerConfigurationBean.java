@@ -25,28 +25,18 @@
  */
 package org.filesys.alfresco.config;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.nio.charset.Charset;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.util.*;
-
 import org.alfresco.error.AlfrescoRuntimeException;
+import org.alfresco.repo.management.subsystems.ActivateableBean;
 import org.filesys.alfresco.AbstractServerConfigurationBean;
 import org.filesys.alfresco.base.AlfrescoContext;
 import org.filesys.alfresco.base.ExtendedDiskInterface;
 import org.filesys.alfresco.config.acl.AccessControlListBean;
 import org.filesys.alfresco.repo.*;
 import org.filesys.alfresco.util.WINS;
+import org.filesys.audit.Audit;
+import org.filesys.audit.AuditGroup;
+import org.filesys.debug.DebugInterface;
+import org.filesys.debug.LogFileDebug;
 import org.filesys.ftp.*;
 import org.filesys.netbios.NetBIOSSession;
 import org.filesys.netbios.RFCNetBIOSProtocol;
@@ -80,9 +70,18 @@ import org.filesys.util.IPAddress;
 import org.filesys.util.MemorySize;
 import org.filesys.util.PlatformType;
 import org.filesys.util.X64;
-import org.alfresco.repo.management.subsystems.ActivateableBean;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.extensions.config.element.GenericConfigElement;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.*;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.util.*;
 
 
 /**
@@ -107,6 +106,7 @@ public class ServerConfigurationBean extends AbstractServerConfigurationBean imp
     private LicenceConfigBean licenceConfigBean;
     private SMB2ConfigBean smb2ConfigBean;
     private SMB3ConfigBean smb3ConfigBean;
+    private AuditConfigBean auditConfigBean;
 
     private ThreadRequestPool threadPool;
     protected ClusterConfigBean clusterConfigBean;
@@ -216,6 +216,13 @@ public class ServerConfigurationBean extends AbstractServerConfigurationBean imp
      * @param smb3Bean SMB2ConfigBean
      */
     public void setSmb3ConfigBean(SMB3ConfigBean smb3Bean) { smb3ConfigBean = smb3Bean; }
+
+    /**
+     * Set the audit log configuration
+     *
+     * @param auditLogBean Audit
+     */
+    public void setAuditConfigBean(AuditConfigBean auditLogBean) { auditConfigBean = auditLogBean; }
 
     /**
      * Process the SMB server configuration
@@ -2193,6 +2200,57 @@ public class ServerConfigurationBean extends AbstractServerConfigurationBean imp
             LicenceConfigSection licenceConfig = new LicenceConfigSection( this);
             licenceConfig.setLicenceKey( licenceConfigBean.getLicenceKey());
             licenceConfig.setProductEdition( "Alfresco");
+        }
+    }
+
+    @Override
+    protected void processAuditLog() throws IOException {
+
+        if ( auditConfigBean != null) {
+
+            // Check if a valid path has been configured
+            if ( auditConfigBean.getAuditLogPath() == null || auditConfigBean.getAuditLogPath().length() == 0)
+                return;
+
+            // Check for enabled audit groups
+            String groupList = auditConfigBean.getAuditGroups();
+            EnumSet<AuditGroup> auditGroups = EnumSet.<AuditGroup>noneOf( AuditGroup.class);
+
+            if ( groupList != null) {
+
+                if ( groupList.equals( "*")) {
+                    auditGroups = EnumSet.allOf( AuditGroup.class);
+                }
+                else {
+
+                    // Parse the groups list
+                    groupList = groupList.toUpperCase();
+                    StringTokenizer token = new StringTokenizer(groupList, ",");
+
+                    while (token.hasMoreTokens()) {
+
+                        // Get the current audit group name
+                        String groupName = token.nextToken().trim();
+
+                        // Convert the group name to an enum value
+                        try {
+                            auditGroups.add(AuditGroup.valueOf(groupName));
+                        }
+                        catch (IllegalArgumentException ex) {
+                            throw new AlfrescoRuntimeException("Invalid audit group name, " + groupName);
+                        }
+                    }
+                }
+            }
+
+            // Set the enabled audit groups
+            Audit.setAuditGroups( auditGroups);
+
+            // Create audit log interface
+            DebugInterface auditInterface = new LogFileDebug(auditConfigBean.getAuditLogPath(), true);
+
+            // Set the audit log output to go to a separate file
+            Audit.setAuditInterface( auditInterface);
         }
     }
 

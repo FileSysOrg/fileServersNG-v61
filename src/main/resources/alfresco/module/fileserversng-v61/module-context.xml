@@ -24,10 +24,24 @@
 <!--	<import resource="classpath:alfresco/module/${project.artifactId}/context/service-context.xml" /> -->
 
 	<!--  File Servers NG Subsystem -->
-	<bean id="fileserversng-v61" class="org.alfresco.repo.management.subsystems.ChildApplicationContextFactory" parent="abstractPropertyBackedBean">
+	<bean id="fileserversng-v61" class="org.alfresco.repo.management.subsystems.ChildApplicationContextFactory"
+		  parent="abstractPropertyBackedBean">
 		<property name="autoStart">
 			<value>true</value>
 		</property>
+		<property name="compositePropertyTypes">
+			<map>
+				<entry key="filesystem.acl.global.domainAccessControls"
+					value="org.filesys.alfresco.config.acl.DomainAccessControlBean" />
+				<entry key="filesystem.acl.global.protocolAccessControls"
+					value="org.filesys.alfresco.config.acl.ProtocolAccessControlBean" />
+				<entry key="filesystem.acl.global.userAccessControls"
+					value="org.filesys.alfresco.config.acl.UserAccessControlBean" />
+				<entry key="filesystem.domainMappings"
+					value="org.filesys.alfresco.config.DomainMappingConfigBean" />
+			</map>
+		</property>
+<!--
 		<property name="compositePropertyTypes">
 			<map>
 				<entry key="filesystem.acl.global.domainAccessControls">
@@ -44,6 +58,7 @@
 				</entry>
 			</map>
 		</property>
+-->
 		<property name="persister">
 			<bean class="org.alfresco.config.AlfrescoPropertiesPersister"/>
 		</property>
