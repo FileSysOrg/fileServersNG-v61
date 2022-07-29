@@ -53,7 +53,7 @@ public abstract class AlfrescoContext extends DiskDeviceContext
 {
     private SysAdminParams sysAdminParams;
     
-    private boolean pseudoFilesEnabled = false;
+    private boolean pseudoFilesEnabled = true;
     private boolean isAlfrescoURLEnabled = false;
     private boolean isShareURLEnabled = false;
 

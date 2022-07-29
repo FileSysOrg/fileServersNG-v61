@@ -53,6 +53,8 @@ services:
     volumes:
       - fileserversng-v61-ass-volume:/opt/alfresco-search-services/contentstore
       - fileserversng-v61-ass-volume:/opt/alfresco-search-services/data
+    depends_on:
+      - fileserversng-v61-acs
 
 volumes:
   fileserversng-v61-acs-volume:

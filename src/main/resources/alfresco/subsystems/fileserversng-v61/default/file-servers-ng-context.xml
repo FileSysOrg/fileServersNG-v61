@@ -184,6 +184,10 @@
         <property name="loginConfiguration">
             <value>${smb.login.config}</value>
         </property>
+
+        <property name="password">
+            <value>${smb.kerberos.password}</value>
+        </property>
     </bean>
 
     <!-- FTP authentication -->
@@ -491,6 +495,9 @@
         <property name="disableEncryption">
             <value>${smb.smb3DisableEncryption}</value>
         </property>
+        <property name="AESProviderName">
+            <value>${smb.AESProvider}</value>
+        </property>
     </bean>
 
     <bean id="ftpServerConfig" class="org.filesys.alfresco.config.FTPConfigBean">
@@ -722,19 +729,47 @@
 
                             <!-- Other desktop actions which may be enabled -->
                             <!--
-                               <bean class="org.alfresco.filesys.repo.desk.EchoDesktopAction"> <property name="name">
-                               <value>Echo</value> </property> <property name="filename"> <value>__AlfrescoEcho.exe</value>
-                               </property> </bean> <bean class="org.alfresco.filesys.repo.desk.URLDesktopAction"> <property
-                               name="name"> <value>URL</value> </property> <property name="filename">
-                               <value>__AlfrescoURL.exe</value> </property> </bean> <bean
-                               class="org.alfresco.filesys.repo.desk.CmdLineDesktopAction"> <property name="name">
-                               <value>CmdLine</value> </property> <property name="filename"> <value>__AlfrescoCmd.exe</value>
-                               </property> </bean> <bean class="org.alfresco.filesys.repo.desk.JavaScriptDesktopAction">
-                               <property name="name"> <value>JavaScript</value> </property> <property name="filename">
-                               <value>__AlfrescoScript.exe</value> </property> <property name="scriptName">
-                               <value>alfresco/desktop/dumpRequest.js</value> </property> <property name="attributeList">
-                               <value>anyFiles, multiplePaths, allowNoParams</value> </property> <property name="preprocess">
-                               <value>confirm, copyToTarget</value> </property> </bean>
+                               <bean class="org.alfresco.filesys.repo.desk.EchoDesktopAction">
+                                 <property name="name">
+                                   <value>Echo</value>
+                                 </property>
+                                 <property name="filename">
+                                   <value>__AlfrescoEcho.exe</value>
+                                 </property>
+                               </bean>
+                               <bean class="org.alfresco.filesys.repo.desk.URLDesktopAction">
+                                 <property name="name">
+                                   <value>URL</value>
+                                 </property>
+                                 <property name="filename">
+                                   <value>__AlfrescoURL.exe</value>
+                                 </property>
+                               </bean>
+                               <bean class="org.alfresco.filesys.repo.desk.CmdLineDesktopAction">
+                                 <property name="name">
+                                   <value>CmdLine</value>
+                                 </property>
+                                 <property name="filename">
+                                   <value>__AlfrescoCmd.exe</value>
+                                 </property>
+                               </bean>
+                               <bean class="org.alfresco.filesys.repo.desk.JavaScriptDesktopAction">
+                                 <property name="name">
+                                   <value>JavaScript</value>
+                                 </property>
+                                 <property name="filename">
+                                   <value>__AlfrescoScript.exe</value>
+                                 </property>
+                                 <property name="scriptName">
+                                   <value>alfresco/desktop/dumpRequest.js</value>
+                                 </property>
+                                 <property name="attributeList">
+                                   <value>anyFiles, multiplePaths, allowNoParams</value>
+                                  </property>
+                                  <property name="preprocess">
+                                    <value>confirm, copyToTarget</value>
+                                  </property>
+                                </bean>
                             -->
                         </list>
                     </property>
@@ -1225,8 +1260,13 @@
         <property name="hiddenAspect" ><ref bean="hiddenAspect"/></property>
         <property name="alfrescoLockKeeper" ><ref bean="lockKeeper"/></property>
         <property name="versionService" ><ref bean="VersionService"/></property>
-<!--        <property name="deletePseudoFileCache" ><ref bean="deletePseudoFileCache"/></property> -->
+        <property name="deletePseudoFileCache" ><ref bean="deletePseudoFileCache"/></property>
 
+    </bean>
+
+    <!--  Temp Deleted Pseudo File Cache With TTL -->
+    <bean name="deletePseudoFileCache" factory-bean="cacheFactory" factory-method="createCache">
+        <constructor-arg value="cache.deletePseudoFileCache"/>
     </bean>
 
     <bean id="nodeMonitorFactory" class="org.filesys.alfresco.repo.NodeMonitorFactory">

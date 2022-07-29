@@ -32,7 +32,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.filesys.alfresco.base.AlfrescoClientInfo;
 import org.filesys.alfresco.base.AlfrescoClientInfoFactory;
-import org.filesys.server.auth.*;
+import org.filesys.server.auth.ClientInfo;
+import org.filesys.server.auth.SecurityBlob;
+import org.filesys.server.auth.TransactionalSMBAuthenticator;
 import org.filesys.server.auth.spnego.NegTokenInit;
 import org.filesys.server.auth.spnego.OID;
 import org.filesys.server.config.InvalidConfigurationException;
@@ -189,8 +191,9 @@ public class AlfrescoSMBAuthenticator extends V2EnterpriseSMBAuthenticator
     {
         this.diskInterface = diskInterface;
     }
+
     /**
-     * Sets the HTTP service account password. (the Principal should be configured in java.login.config)
+     * Sets the SMB service account password. (the Principal should be configured in java.login.config)
      *
      * @param password
      *            the password to set
@@ -201,7 +204,7 @@ public class AlfrescoSMBAuthenticator extends V2EnterpriseSMBAuthenticator
     }
 
     /**
-     * Sets the HTTP service account realm.
+     * Sets the SMB service account realm.
      *
      * @param realm
      *            the realm to set
@@ -212,7 +215,7 @@ public class AlfrescoSMBAuthenticator extends V2EnterpriseSMBAuthenticator
     }
 
     /**
-     * Sets the HTTP service login configuration entry name.
+     * Sets the SMB service login configuration entry name.
      *
      * @param jaasConfigEntryName
      *            the loginEntryName to set
@@ -493,7 +496,7 @@ public class AlfrescoSMBAuthenticator extends V2EnterpriseSMBAuthenticator
         // Setup the authentication context
         AlfrescoClientInfo alfClient = (AlfrescoClientInfo) client;
 
-        if ( alfClient.isGuest() || alfClient.isNullSession()) {
+        if ( alfClient.isGuest()) {
 
             // Setup the authentication context for a guest user, save the ticket to be used to setup the authentication
             // context for subsequent requests
@@ -503,6 +506,12 @@ public class AlfrescoSMBAuthenticator extends V2EnterpriseSMBAuthenticator
             // DEBUG
             if ( logger.isDebugEnabled())
                 logger.debug("Logged on as guest");
+        }
+        if ( alfClient.isNullSession()) {
+
+            // DEBUG
+            if ( logger.isDebugEnabled())
+                logger.debug("Logged on as null session");
         }
         else {
 
@@ -886,7 +895,7 @@ public class AlfrescoSMBAuthenticator extends V2EnterpriseSMBAuthenticator
     }
 
     @Override
-    public ISMBAuthenticator.AuthStatus processSecurityBlobInTransaction(SMBSrvSession sess, ClientInfo client, SecurityBlob secBlob)
+    public AuthStatus processSecurityBlobInTransaction(SMBSrvSession sess, ClientInfo client, SecurityBlob secBlob)
             throws SMBSrvException {
 
         // Try and do the logon
