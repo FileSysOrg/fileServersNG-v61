@@ -45,7 +45,7 @@ public abstract class NodeRefNetworkFile extends AlfrescoNetworkFile
 	
 	// Process id of the owner
 	
-	protected int m_pid;
+	protected long m_pid;
 	
 	// Reference count of file opens
 	//
@@ -99,18 +99,18 @@ public abstract class NodeRefNetworkFile extends AlfrescoNetworkFile
 	/**
 	 * Return the process id of the owner
 	 * 
-	 * @return int
+	 * @return long
 	 */
-	public final int getProcessId() {
+	public final long getProcessId() {
 		return m_pid;
 	}
 	
 	/**
 	 * Set the owner process id
 	 * 
-	 * @param pid int
+	 * @param pid long
 	 */
-	public final void setProcessId(int pid) {
+	public final void setProcessId(long pid) {
 		m_pid = pid;
 	}
 	

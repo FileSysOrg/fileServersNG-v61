@@ -50,7 +50,10 @@ public class LinkMemoryNetworkFile extends NodeRefNetworkFile
     // File data
     
     private byte[] m_data;
-    
+
+    // Link node ref
+    private NodeRef m_linkRef;
+
     /**
      * Class constructor.
      * 
@@ -58,34 +61,41 @@ public class LinkMemoryNetworkFile extends NodeRefNetworkFile
      * @param data byte[]
      * @param finfo FileInfo
      * @param nodeRef NodeRef
+     * @param linkRef NodeRef
      */
-    public LinkMemoryNetworkFile(String name, byte[] data, FileInfo finfo, NodeRef nodeRef)
+    public LinkMemoryNetworkFile(String name, byte[] data, FileInfo finfo, NodeRef nodeRef, NodeRef linkRef)
     {
         super( name, nodeRef);
 
+        // Save the link ref
+        m_linkRef = linkRef;
+
         // Set the file data
-        
         m_data = data;
         if ( m_data == null)
             m_data = new byte[0];
         
         // Set the file size
-
         setFileSize( m_data.length);
 
         // Set the creation and modification date/times
-
         setModifyDate( finfo.getModifyDateTime());
         setCreationDate( finfo.getCreationDateTime());
 
         // Set the file id and relative path
-
         if ( finfo.getPath() != null)
         {
             setFileId( finfo.getPath().hashCode());
             setFullName( finfo.getPath());
         }
     }
+
+    /**
+     * Return the node ref of the link node
+     *
+     * @return NodeRef
+     */
+    public final NodeRef getLinkRef() { return m_linkRef; }
 
     /**
      * Close the network file.

@@ -52,6 +52,9 @@ public class FileServerDebugInterface implements DebugInterface {
   // MER TODO - Not thread safe - probably needs to be in a thread slot.   Would be much better to fix DebugInterface.
   private StringBuilder m_printBuf;
 
+  // Dump stack traces
+  private boolean m_dumpStackTraces;
+
   /**
    * Class constructor
    */
@@ -218,6 +221,11 @@ public class FileServerDebugInterface implements DebugInterface {
                   logger.error("Error from JFileServer", ex);
                   break;
         }
+    }
+
+    @Override
+    public boolean hasDumpStackTrace() {
+        return m_dumpStackTraces;
     }
 
     @Override
