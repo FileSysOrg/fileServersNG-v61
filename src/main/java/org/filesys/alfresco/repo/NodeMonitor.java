@@ -712,8 +712,7 @@ public class NodeMonitor extends TransactionListenerAdapter
 				
 				fState.setFileStatus(FileStatus.NotExist);
 				fState.setAllocationSize(0);
-				fState.setOpenCount(0);
-				
+
 				// What about oplocks that are on the deleted file?
 				
 				// DEBUG

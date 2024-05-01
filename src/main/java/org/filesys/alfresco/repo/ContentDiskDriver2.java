@@ -2745,7 +2745,7 @@ public class ContentDiskDriver2 extends  AlfrescoDiskDriver implements ExtendedD
                 // Get the CIFS server name
 
                 String srvName = null;
-                SMBServer cifsServer = (SMBServer) session.getServer().getConfiguration().findServer( "CIFS");
+                SMBServer cifsServer = (SMBServer) session.getServer().getConfiguration().findServer( "SMB");
 
                 if ( cifsServer != null)
                 {
